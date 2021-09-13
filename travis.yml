@@ -1,0 +1,46 @@
+notifications:
+  email: false
+
+env:
+  majorversion: 0
+  minorversion: 0
+
+language: cpp
+compiler: gcc
+
+cache: ccache
+
+before_install:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get update
+#- sudo apt-get update -qq
+
+install:
+  #- sudo apt-get install -qq g++-4.8
+  #- export CXX="g++-4.8"
+  - sudo apt-get -qq install g++-6 gcc-6
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60 --slave /usr/bin/g++ g++ /usr/bin/g++-6
+  - if [[ $TRAVIS_OS_NAME == "osx" ]] ; then brew install --force qt@5.7 ; else sudo apt-get install -y libxtst-dev libx11-dev cmake bc qt5-default qttools5-dev qttools5-dev-tools; fi
+
+script:
+  - ./configure
+  - make -C build
+  - mkdir build
+  - cd build
+  - cmake -DCMAKE_BUILD_TYPE=Release ../
+  - cmake --build ./
+  - mkdir -p deb/barrier/DEBIAN
+  - mkdir -p deb/barrier/usr/local/bin
+  - cp bin/* deb/barrier/usr/local/bin/
+  - 'printf "Package: barrier\nVersion: " > deb/barrier/DEBIAN/control'
+  - printf "${majorversion}.${minorversion}.${TRAVIS_BUILD_NUMBER}" >> deb/barrier/DEBIAN/control
+  - 'printf "\nMaintainer: tCommunity\nArchitecture: all\nDescription: barrier\n" >> deb/barrier/DEBIAN/control'
+  - cat deb/barrier/DEBIAN/control
+  - mkdir -p deb/barrier/usr/icons
+  - cp ../res/barrier.ico deb/barrier/usr/icons
+  - mkdir -p deb/barrier/usr/share/applications
+  - 'printf "[Desktop Entry]\nType=Application\nVersion=" > deb/barrier/usr/share/applications/barrier.desktop'
+  - printf "${majorversion}.${minorversion}.${TRAVIS_BUILD_NUMBER}" > deb/barrier/usr/share/applications/barrier.desktop
+  - 'printf "\nName=Barrier\nGenericName=Mouse and Keyboard Sharing\nIcon=/usr/icons/barrier.ico\nExec=/usr/local/bin/barriergui\nCategories=Utility;RemoteAccess;" > deb/barrier/usr/share/applications/barrier.desktop'
+  - dpkg-deb --build deb/barrier
+  - ls deb/
